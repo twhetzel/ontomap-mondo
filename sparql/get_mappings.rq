@@ -1,0 +1,25 @@
+PREFIX rdfs:     <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl:      <http://www.w3.org/2002/07/owl#>
+PREFIX oboInOwl: <http://www.geneontology.org/formats/oboInOwl#>
+
+SELECT DISTINCT ?curie ?label ?xref ?source
+WHERE {
+  ?cls a owl:Class .
+  FILTER(STRSTARTS(STR(?cls), "http://purl.obolibrary.org/obo/MONDO_"))
+  FILTER NOT EXISTS { ?cls owl:deprecated true }
+
+  OPTIONAL {
+    ?cls rdfs:label ?label .
+  }
+
+  # Reified xref with an oboInOwl:source
+  ?ax a owl:Axiom ;
+      owl:annotatedSource  ?cls ;
+      owl:annotatedProperty oboInOwl:hasDbXref ;
+      owl:annotatedTarget  ?raw_xref ;
+      oboInOwl:source      ?source .
+
+  BIND(STR(?raw_xref) AS ?xref)
+  BIND(REPLACE(STR(?cls), "^.*/obo/MONDO_", "MONDO:") AS ?curie)
+}
+ORDER BY ?curie ?xref

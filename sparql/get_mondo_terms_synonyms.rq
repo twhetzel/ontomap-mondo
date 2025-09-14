@@ -1,0 +1,77 @@
+# mondo_synonyms_by_scope_agg.rq
+PREFIX rdfs:     <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl:      <http://www.w3.org/2002/07/owl#>
+PREFIX oboInOwl: <http://www.geneontology.org/formats/oboInOwl#>
+
+SELECT ?curie ?label
+       ?exact_synonyms ?related_synonyms ?broad_synonyms ?narrow_synonyms
+WHERE {
+  # Base: non-obsolete MONDO classes (+ optional label)
+  {
+    SELECT ?cls ?label WHERE {
+      ?cls a owl:Class .
+      FILTER(STRSTARTS(STR(?cls), "http://purl.obolibrary.org/obo/MONDO_"))
+      FILTER NOT EXISTS { ?cls owl:deprecated true }
+      OPTIONAL { ?cls rdfs:label ?label }
+    }
+  }
+
+  # EXACT
+  OPTIONAL {
+    SELECT ?cls (GROUP_CONCAT(DISTINCT STR(?syn); separator="|") AS ?exact_synonyms)
+    WHERE {
+      { ?cls oboInOwl:hasExactSynonym ?syn }
+      UNION
+      { ?ax a owl:Axiom ;
+            owl:annotatedSource  ?cls ;
+            owl:annotatedProperty oboInOwl:hasExactSynonym ;
+            owl:annotatedTarget  ?syn . }
+    }
+    GROUP BY ?cls
+  }
+
+  # RELATED
+  OPTIONAL {
+    SELECT ?cls (GROUP_CONCAT(DISTINCT STR(?syn); separator="|") AS ?related_synonyms)
+    WHERE {
+      { ?cls oboInOwl:hasRelatedSynonym ?syn }
+      UNION
+      { ?ax a owl:Axiom ;
+            owl:annotatedSource  ?cls ;
+            owl:annotatedProperty oboInOwl:hasRelatedSynonym ;
+            owl:annotatedTarget  ?syn . }
+    }
+    GROUP BY ?cls
+  }
+
+  # BROAD
+  OPTIONAL {
+    SELECT ?cls (GROUP_CONCAT(DISTINCT STR(?syn); separator="|") AS ?broad_synonyms)
+    WHERE {
+      { ?cls oboInOwl:hasBroadSynonym ?syn }
+      UNION
+      { ?ax a owl:Axiom ;
+            owl:annotatedSource  ?cls ;
+            owl:annotatedProperty oboInOwl:hasBroadSynonym ;
+            owl:annotatedTarget  ?syn . }
+    }
+    GROUP BY ?cls
+  }
+
+  # NARROW
+  OPTIONAL {
+    SELECT ?cls (GROUP_CONCAT(DISTINCT STR(?syn); separator="|") AS ?narrow_synonyms)
+    WHERE {
+      { ?cls oboInOwl:hasNarrowSynonym ?syn }
+      UNION
+      { ?ax a owl:Axiom ;
+            owl:annotatedSource  ?cls ;
+            owl:annotatedProperty oboInOwl:hasNarrowSynonym ;
+            owl:annotatedTarget  ?syn . }
+    }
+    GROUP BY ?cls
+  }
+
+  BIND(REPLACE(STR(?cls), "^.*/obo/MONDO_", "MONDO:") AS ?curie)
+}
+ORDER BY ?curie

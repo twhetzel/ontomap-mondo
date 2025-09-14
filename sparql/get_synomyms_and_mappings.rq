@@ -1,0 +1,88 @@
+PREFIX rdfs:     <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl:      <http://www.w3.org/2002/07/owl#>
+PREFIX oboInOwl: <http://www.geneontology.org/formats/oboInOwl#>
+
+SELECT ?curie ?label
+       (GROUP_CONCAT(DISTINCT STR(?xref);   separator="|") AS ?dbxrefs)
+       (GROUP_CONCAT(DISTINCT STR(?source); separator="|") AS ?dbxref_sources)
+       (GROUP_CONCAT(DISTINCT STR(?exSyn);  separator="|") AS ?exact_synonyms)
+       (GROUP_CONCAT(DISTINCT STR(?exXref); separator="|") AS ?exact_syn_xrefs)
+       (GROUP_CONCAT(DISTINCT STR(?naSyn);  separator="|") AS ?narrow_synonyms)
+       (GROUP_CONCAT(DISTINCT STR(?naXref); separator="|") AS ?narrow_syn_xrefs)
+       (GROUP_CONCAT(DISTINCT STR(?brSyn);  separator="|") AS ?broad_synonyms)
+       (GROUP_CONCAT(DISTINCT STR(?brXref); separator="|") AS ?broad_syn_xrefs)
+       (GROUP_CONCAT(DISTINCT STR(?reSyn);  separator="|") AS ?related_synonyms)
+       (GROUP_CONCAT(DISTINCT STR(?reXref); separator="|") AS ?related_syn_xrefs)
+WHERE {
+  ?cls a owl:Class .
+  FILTER(STRSTARTS(STR(?cls), "http://purl.obolibrary.org/obo/MONDO_"))
+
+  OPTIONAL {
+    ?cls rdfs:label ?label .
+  }
+
+  # --- Class-level xrefs with oboInOwl:source (reified) ---
+  OPTIONAL {
+    ?axX a owl:Axiom ;
+         owl:annotatedSource  ?cls ;
+         owl:annotatedProperty oboInOwl:hasDbXref ;
+         owl:annotatedTarget  ?xref ;
+         oboInOwl:source      ?source .
+  }
+
+  # --- EXACT synonyms (+ their xrefs if reified) ---
+  OPTIONAL {
+    { # reified synonym with optional dbxref
+      ?ax1 a owl:Axiom ;
+           owl:annotatedSource  ?cls ;
+           owl:annotatedProperty oboInOwl:hasExactSynonym ;
+           owl:annotatedTarget  ?exSyn .
+      OPTIONAL { ?ax1 oboInOwl:hasDbXref ?exXref . }
+    }
+    UNION
+    { ?cls oboInOwl:hasExactSynonym ?exSyn . }
+  }
+
+  # --- NARROW synonyms ---
+  OPTIONAL {
+    {
+      ?ax2 a owl:Axiom ;
+           owl:annotatedSource  ?cls ;
+           owl:annotatedProperty oboInOwl:hasNarrowSynonym ;
+           owl:annotatedTarget  ?naSyn .
+      OPTIONAL { ?ax2 oboInOwl:hasDbXref ?naXref . }
+    }
+    UNION
+    { ?cls oboInOwl:hasNarrowSynonym ?naSyn . }
+  }
+
+  # --- BROAD synonyms ---
+  OPTIONAL {
+    {
+      ?ax3 a owl:Axiom ;
+           owl:annotatedSource  ?cls ;
+           owl:annotatedProperty oboInOwl:hasBroadSynonym ;
+           owl:annotatedTarget  ?brSyn .
+      OPTIONAL { ?ax3 oboInOwl:hasDbXref ?brXref . }
+    }
+    UNION
+    { ?cls oboInOwl:hasBroadSynonym ?brSyn . }
+  }
+
+  # --- RELATED synonyms ---
+  OPTIONAL {
+    {
+      ?ax4 a owl:Axiom ;
+           owl:annotatedSource  ?cls ;
+           owl:annotatedProperty oboInOwl:hasRelatedSynonym ;
+           owl:annotatedTarget  ?reSyn .
+      OPTIONAL { ?ax4 oboInOwl:hasDbXref ?reXref . }
+    }
+    UNION
+    { ?cls oboInOwl:hasRelatedSynonym ?reSyn . }
+  }
+
+  BIND(REPLACE(STR(?cls), "^.*/obo/MONDO_", "MONDO:") AS ?curie)
+}
+GROUP BY ?curie ?label
+ORDER BY ?curie
